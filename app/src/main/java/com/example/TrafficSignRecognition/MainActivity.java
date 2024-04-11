@@ -2,12 +2,24 @@ package com.example.TrafficSignRecognition;
 
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Rational;
+import android.util.Size;
+import android.view.Surface;
 import android.view.TextureView;
+import android.view.ViewGroup;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.camera.core.CameraX;
+import androidx.camera.core.ImageCapture;
+import androidx.camera.core.ImageCaptureConfig;
+import androidx.camera.core.ImageProxy;
+import androidx.camera.core.Preview;
+import androidx.camera.core.PreviewConfig;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -15,8 +27,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.util.Calendar;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -67,6 +83,10 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
     private final String[] REQUIRED_PERMISSIONS = new String[]{"android.permission.CAMERA", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.READ_EXTERNAL_STORAGE"};
     private int REQUEST_CODE_PERMISSIONS = 101;
+    public ByteBuffer bb;
+    public byte[] buf;
+    Bitmap bmOut;
+    OutputStream out;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -146,18 +166,154 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startCamera(){
+        CameraX.unbindAll();
 
+        Rational aspectRatio = new Rational (textureView.getWidth(), textureView.getHeight());
+        Size screen = new Size(textureView.getWidth(), textureView.getHeight()); //size of the screen
+        PreviewConfig pConfig = new PreviewConfig.Builder()
+                .setTargetAspectRatio(aspectRatio)
+                .setTargetResolution(screen)
+
+                .build();
+        Preview preview = new Preview(pConfig);
+        preview.setOnPreviewOutputUpdateListener(
+                new Preview.OnPreviewOutputUpdateListener() {
+                    @Override
+                    public void onUpdated(Preview.PreviewOutput output){
+                        ViewGroup parent = (ViewGroup) textureView.getParent();
+                        parent.removeView(textureView);
+                        parent.addView(textureView, 0);
+
+                        textureView.setSurfaceTexture(output.getSurfaceTexture());
+                        updateTransform();
+                    }
+                });
+
+        ImageCaptureConfig imageCaptureConfig = new ImageCaptureConfig.Builder().setCaptureMode(ImageCapture.CaptureMode.MIN_LATENCY)
+                .setTargetRotation(getWindowManager().getDefaultDisplay().getRotation()).build();
+        final ImageCapture imgCap = new ImageCapture(imageCaptureConfig);
+
+        findViewById(R.id.imgCapture).setOnClickListener(v -> {
+            imgCap.takePicture(new ImageCapture.OnImageCapturedListener() {
+                @Override
+                public void onCaptureSuccess(ImageProxy image, int rotationDegrees) {
+                    try {
+                        // Lines for analysis by taking the picture
+                        bb = image.getPlanes()[0].getBuffer();
+                        buf = new byte[bb.remaining()];
+                        bb.get(buf);
+                        bmOut = BitmapFactory.decodeByteArray(buf, 0, buf.length, null);
+
+                        // Lines for analysis of an image object OInput
+//                        file = new File(getApplicationContext().getExternalFilesDir(null).getAbsolutePath()+fileSeparator+"OInput.jpg");
+//                        bmOut = BitmapFactory.decodeFile(file.getPath());
+//
+//                        file = new File(getApplicationContext().getExternalFilesDir(null).getAbsolutePath() + fileSeparator + "Temp" + fileSeparator + "CameraImage_Original_" + Calendar.getInstance().getTime() + ".jpg");
+//                        out = new FileOutputStream(file);
+//                        bmOut.compress(Bitmap.CompressFormat.JPEG, 100, out);
+//                        out.flush(); out.close();
+
+                        //Starting the analysis of new image or file with SIFT
+                        //maxRes 180
+                        Log.i(TAG, "We have a bitmap!");
+                        //Saving the bitmap onto disk to see what we recieved from camera
+                        width = bmOut.getWidth(); height = bmOut.getHeight();
+                        Log.i(TAG, "Width =  " + width + "   Height = " + height);
+                        // Scaling the image to the maxRes
+                        if (height>width) { // if height > width
+                            width=Math.round(maxRes * width / height); height=maxRes;
+                        } else {
+                            height=Math.round(maxRes * height / width); width=maxRes;
+                        }
+                        bmOut = Bitmap.createScaledBitmap(bmOut, width, height, true); // Here, we scale bitmap to maxRes pixels; true means that we use bilinear filtering for better image
+
+                        //Converting to greyscale
+                        t1 = new Thread(new ThreadGrey(0, 62), "t1");
+                        t2 = new Thread(new ThreadGrey(62, 125), "t2");
+                        t3 = new Thread(new ThreadGrey(125, 187), "t3");
+                        t4 = new Thread(new ThreadGrey(187, 250), "t4");
+                        t5 = new Thread(new ThreadGrey(250, 312), "t5");
+                        t6 = new Thread(new ThreadGrey(312, 375), "t6");
+                        t7 = new Thread(new ThreadGrey(375, 437), "t7");
+                        t8 = new Thread(new ThreadGrey(437, 500), "t1");
+                        t1.start();
+                        t2.start();
+                        t3.start();
+                        t4.start();
+                        t5.start();
+                        t6.start();
+                        t7.start();
+                        t8.start();
+
+                        Log.i(TAG, "New width =  " + width + "   New height = " + height);
+                        t1.join(); t2.join(); t3.join(); t4.join(); t5.join(); t6.join(); t7.join(); t8.join();
+                        file = new File(getApplicationContext().getExternalFilesDir(null).getAbsolutePath() + fileSeparator + "Temp" + fileSeparator + "CameraImage_Grey_" + maxRes + " " + Calendar.getInstance().getTime() + ".jpg");
+                        out = new FileOutputStream(file);
+                        bmOut.compress(Bitmap.CompressFormat.JPEG, 100, out);
+                        out.flush(); out.close();
+                        Log.i(TAG, "We have got greyscale bitmap :)");
+
+                    } catch (Exception e) {
+                        Log.i(TAG, "Exception " + e);
+                    }
+                }
+            });
+        });
     }
 
-    private boolean allPermissionsGranted(){
+    class ThreadGrey implements Runnable{
 
-        for(String permission : REQUIRED_PERMISSIONS){
-            if(ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED){
-                return false;
-            }
+        public ThreadGrey(int i, int i1) {
         }
-        return true;
+
+        @Override
+        public void run() {
+
+        }
     }
+                private void updateTransform() {
+                    Matrix mx = new Matrix();
+                    float w = textureView.getMeasuredWidth();
+                    float h = textureView.getMeasuredHeight();
+
+                    float cX = w * 0.5f;
+                    float cY = h * 0.5f;
+
+                    int rotationDgr;
+                    int rotation = (int) textureView.getRotation();
+
+                    switch (rotation) {
+                        case Surface.ROTATION_0:
+                            rotationDgr = 0;
+                            break;
+                        case Surface.ROTATION_90:
+                            rotationDgr = 90;
+                            break;
+                        case Surface.ROTATION_180:
+                            rotationDgr = 180;
+                            break;
+                        case Surface.ROTATION_270:
+                            rotationDgr = 270;
+                            break;
+                        default:
+                            return;
+                    }
+
+                    mx.postRotate((float) rotationDgr, cX, cY);
+                    textureView.setTransform(mx);
+                }
+
+                private boolean allPermissionsGranted() {
+
+                    for (String permission : REQUIRED_PERMISSIONS) {
+                        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
 
 
-}
+            }
+
+
