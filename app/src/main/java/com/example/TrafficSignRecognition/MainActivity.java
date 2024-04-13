@@ -3,6 +3,7 @@ package com.example.TrafficSignRecognition;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.Matrix;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -217,13 +218,16 @@ public class MainActivity extends AppCompatActivity {
                         //maxRes 180
                         Log.i(TAG, "We have a bitmap!");
                         //Saving the bitmap onto disk to see what we recieved from camera
-                        width = bmOut.getWidth(); height = bmOut.getHeight();
+                        width = bmOut.getWidth();
+                        height = bmOut.getHeight();
                         Log.i(TAG, "Width =  " + width + "   Height = " + height);
                         // Scaling the image to the maxRes
-                        if (height>width) { // if height > width
-                            width=Math.round(maxRes * width / height); height=maxRes;
+                        if (height > width) { // if height > width
+                            width = Math.round(maxRes * width / height);
+                            height = maxRes;
                         } else {
-                            height=Math.round(maxRes * height / width); width=maxRes;
+                            height = Math.round(maxRes * height / width);
+                            width = maxRes;
                         }
                         bmOut = Bitmap.createScaledBitmap(bmOut, width, height, true); // Here, we scale bitmap to maxRes pixels; true means that we use bilinear filtering for better image
 
@@ -246,74 +250,192 @@ public class MainActivity extends AppCompatActivity {
                         t8.start();
 
                         Log.i(TAG, "New width =  " + width + "   New height = " + height);
-                        t1.join(); t2.join(); t3.join(); t4.join(); t5.join(); t6.join(); t7.join(); t8.join();
+                        t1.join();
+                        t2.join();
+                        t3.join();
+                        t4.join();
+                        t5.join();
+                        t6.join();
+                        t7.join();
+                        t8.join();
                         file = new File(getApplicationContext().getExternalFilesDir(null).getAbsolutePath() + fileSeparator + "Temp" + fileSeparator + "CameraImage_Grey_" + maxRes + " " + Calendar.getInstance().getTime() + ".jpg");
                         out = new FileOutputStream(file);
                         bmOut.compress(Bitmap.CompressFormat.JPEG, 100, out);
-                        out.flush(); out.close();
+                        out.flush();
+                        out.close();
                         Log.i(TAG, "We have got greyscale bitmap :)");
 
-                    } catch (Exception e) {
-                        Log.i(TAG, "Exception " + e);
-                    }
+
+                        sigma0 = 1.0;
+                        radius0 = 3; // radius0 is the radius of the matrix for the Gaussian blur for the current scale
+                        sigma1 = 1.414214;
+                        radius1 = 5; // radius1 is the radius of the matrix for the Gaussian blur for the current scale
+                        sigma2 = 2.0;
+                        radius2 = 6; // radius2 is the radius of the matrix for the Gaussian blur for the current scale
+                        sigma3 = 2.828427;
+                        radius3 = 9; // radius3 is the radius of the matrix for the Gaussian blur for the maximum scale
+                        sigma4 = 4.0;
+                        radius4 = 12; // radius4 is the radius of the matrix for the Gaussian blur for the current scale
+
+                        MainMethodSIFT(); //trying to find new object
+                        k0 = 0; // No objects found
+                        for (i3 = 0; i3 < nObj; i3++) {
+                            if (octave1000First[0][i3] == 1) {
+                                k0 = 1;
+                                break;
+                            }
+                        }
+
+                        if (k0 == 0) {
+                            sigma0 = 1.414214;
+                            radius0 = 5; // radius0 is the radius of the matrix for the Gaussian blur for the current scale
+                            sigma1 = 2.0;
+                            radius1 = 6; // radius1 is the radius of the matrix for the Gaussian blur for the current scale
+                            sigma2 = 2.828427;
+                            radius2 = 9; // radius2 is the radius of the matrix for the Gaussian blur for the current scale
+                            sigma3 = 4.0;
+                            radius3 = 12; // radius3 is the radius of the matrix for the Gaussian blur for the maximum scale
+                            sigma4 = 5.656854;
+                            radius4 = 17; // radius4 is the radius of the matrix for the Gaussian blur for the current scale
+                            MainMethodSift(); //trying to find object with different sigma val
+                            k0 = 0; // No objects found
+                            for (i3 = 0; i3 < nObj; i3++) {
+                                if (octave1000First[0][i3] == 1) {
+                                    k0 = 2;
+                                    break;
+                                }
+                            }
+                            if (k0 == 0) {
+                                sigma0 = 0.5;
+                                radius0 = 2; // radius0 is the radius of the matrix for the Gaussian blur for the current scale
+                                sigma3 = Math.sqrt(2.0);
+                                radius3 = 5; // radius3 is the radius of the matrix for the Gaussian blur for the current scale
+                                sigma1 = 0.5 * sigma3;
+                                radius1 = 3; // radius1 is the radius of the matrix for the Gaussian blur for the current scale
+                                sigma2 = 1.0;
+                                radius2 = 4; // radius2 is the radius of the matrix for the Gaussian blur for the current scale
+                                sigma4 = 2.0;
+                                radius4 = 6; // radius4 is the radius of the matrix for the Gaussian blur for the maximum scale
+                                MainMethodSIFT(); // trying to find object with different sigma val
+                                k0 = 0; // No objects found
+                                for (i3 = 0; i3 < nObj; i3++) {
+                                    if (octave1000First[0][i3] == 1) {
+                                        k0 = 3;
+                                        break;
+                                    }
+                                }
+                                if(k0 == 0){
+                                    mp.reset();
+                                    mp.setDataSource(getApplicationContext().getExternalFilesDir(null).getAbsolutePath() + fileSeparator + "NoObjectFound.mp3");
+                                    mp.prepare();
+                                    mp.start();
+                                    Log.i(TAG, "Object was not found");
+                                    Thread.sleep(2000);
+                                }
+                            }
+                        }
+                        if (k0!=0){
+                            if (octave1000First[0][10]==0 && octave1000First[0][29]==1){
+                                mp.reset(); //after it it is like the object is just created
+                                mp.setDataSource(getApplicationContext().getExternalFilesDir(null).getAbsolutePath() + fileSeparator + "KnowledgeBase" + fileSeparator + "Name19.mp3"); //No entry for pedestrians
+                                mp.prepare();
+                                mp.start();
+                                Thread.sleep(1500);
+                            }
+                            mp.reset();
+                            mp.setDataSource(getApplicationContext().getExternalFilesDir(null).getAbsolutePath() + fileSeparator + "AnalysisFinished.mp3");
+                            mp.prepare();
+                            mp.start();
+                            Log.i(TAG, "Object found with sigma # " + k0);
+                            Thread.sleep(2000);
+                        }
+                        finish();
+                        startActivity(getIntent());
+
+                } catch(Exception e){
+                    Log.i(TAG, "Exception  " + e);
                 }
+            }
+
+
+
+
+
+
+
+
             });
         });
     }
 
-    class ThreadGrey implements Runnable{
 
-        public ThreadGrey(int i, int i1) {
+
+    private void updateTransform() {
+        Matrix mx = new Matrix();
+        float w = textureView.getMeasuredWidth();
+        float h = textureView.getMeasuredHeight();
+
+        float cX = w * 0.5f;
+        float cY = h * 0.5f;
+
+        int rotationDgr;
+        int rotation = (int) textureView.getRotation();
+
+        switch (rotation) {
+            case Surface.ROTATION_0:
+                rotationDgr = 0;
+                break;
+            case Surface.ROTATION_90:
+                rotationDgr = 90;
+                break;
+            case Surface.ROTATION_180:
+                rotationDgr = 180;
+                break;
+            case Surface.ROTATION_270:
+                rotationDgr = 270;
+                break;
+            default:
+                return;
         }
 
+        mx.postRotate((float) rotationDgr, cX, cY);
+        textureView.setTransform(mx);
+    }
+
+    private boolean allPermissionsGranted() {
+
+        for (String permission : REQUIRED_PERMISSIONS) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    class ThreadGrey implements Runnable{
+        private int xStart,xEnd,x, y,pixel;
+        public ThreadGrey(int xStart, int xEnd) {
+            this.xStart = xStart;
+            this.xEnd = xEnd;
+        }
         @Override
         public void run() {
-
+            if (width>height) for (x = xStart; x < xEnd; x++){ //width
+                for (y = 0; y < height; y++){ //height
+                    pixel = bmOut.getPixel(x,y);
+                    greyCdown1[x][y] = 0.21 * Color.red(pixel) + 0.72 * Color.green(pixel) + 0.07 * Color.blue(pixel);
+                    pixel = (int) greyCdown1[x][y];
+                    bmOut.setPixel(x, y, Color.argb(255, pixel, pixel, pixel));
+                }
+            }
+            else for(x = 0; x < width; x++){ //width
+                for (y = xStart; y < xEnd; y++){ //height
+                    pixel = bmOut.getPixel(x,y);
+                    greyCdown1[x][y] = 0.21 * Color.red(pixel) + 0.72 * Color.green(pixel) + 0.07 * Color.blue(pixel);
+                    pixel = (int) greyCdown1[x][y];
+                    bmOut.setPixel(x, y, Color.argb(255, pixel, pixel, pixel));
+                }
+            }
         }
     }
-                private void updateTransform() {
-                    Matrix mx = new Matrix();
-                    float w = textureView.getMeasuredWidth();
-                    float h = textureView.getMeasuredHeight();
-
-                    float cX = w * 0.5f;
-                    float cY = h * 0.5f;
-
-                    int rotationDgr;
-                    int rotation = (int) textureView.getRotation();
-
-                    switch (rotation) {
-                        case Surface.ROTATION_0:
-                            rotationDgr = 0;
-                            break;
-                        case Surface.ROTATION_90:
-                            rotationDgr = 90;
-                            break;
-                        case Surface.ROTATION_180:
-                            rotationDgr = 180;
-                            break;
-                        case Surface.ROTATION_270:
-                            rotationDgr = 270;
-                            break;
-                        default:
-                            return;
-                    }
-
-                    mx.postRotate((float) rotationDgr, cX, cY);
-                    textureView.setTransform(mx);
-                }
-
-                private boolean allPermissionsGranted() {
-
-                    for (String permission : REQUIRED_PERMISSIONS) {
-                        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-
-
-            }
-
-
+}
