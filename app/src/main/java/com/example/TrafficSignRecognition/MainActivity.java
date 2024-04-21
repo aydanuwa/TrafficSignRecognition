@@ -39,6 +39,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Calendar;
 import java.util.SplittableRandom;
+import java.util.regex.MatchResult;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -205,19 +206,19 @@ public class MainActivity extends AppCompatActivity {
                 public void onCaptureSuccess(ImageProxy image, int rotationDegrees) {
                     try {
                         // Lines for analysis by taking the picture
-                        bb = image.getPlanes()[0].getBuffer();
-                        buf = new byte[bb.remaining()];
-                        bb.get(buf);
-                        bmOut = BitmapFactory.decodeByteArray(buf, 0, buf.length, null);
+//                        bb = image.getPlanes()[0].getBuffer();
+//                        buf = new byte[bb.remaining()];
+//                        bb.get(buf);
+//                        bmOut = BitmapFactory.decodeByteArray(buf, 0, buf.length, null);
 
                         // Lines for analysis of an image object OInput
-//                        file = new File(getApplicationContext().getExternalFilesDir(null).getAbsolutePath()+fileSeparator+"OInput.jpg");
-//                        bmOut = BitmapFactory.decodeFile(file.getPath());
+                        file = new File(getApplicationContext().getExternalFilesDir(null).getAbsolutePath()+fileSeparator+"OInput.jpg");
+                        bmOut = BitmapFactory.decodeFile(file.getPath());
 //
-//                        file = new File(getApplicationContext().getExternalFilesDir(null).getAbsolutePath() + fileSeparator + "Temp" + fileSeparator + "CameraImage_Original_" + Calendar.getInstance().getTime() + ".jpg");
-//                        out = new FileOutputStream(file);
-//                        bmOut.compress(Bitmap.CompressFormat.JPEG, 100, out);
-//                        out.flush(); out.close();
+                        file = new File(getApplicationContext().getExternalFilesDir(null).getAbsolutePath() + fileSeparator + "Temp" + fileSeparator + "CameraImage_Original_" + Calendar.getInstance().getTime() + ".jpg");
+                        out = new FileOutputStream(file);
+                        bmOut.compress(Bitmap.CompressFormat.JPEG, 100, out);
+                        out.flush(); out.close();
 
                         //Starting the analysis of new image or file with SIFT
                         //maxRes 180
@@ -244,7 +245,7 @@ public class MainActivity extends AppCompatActivity {
                         t5 = new Thread(new ThreadGrey(250, 312), "t5");
                         t6 = new Thread(new ThreadGrey(312, 375), "t6");
                         t7 = new Thread(new ThreadGrey(375, 437), "t7");
-                        t8 = new Thread(new ThreadGrey(437, 500), "t1");
+                        t8 = new Thread(new ThreadGrey(437, 500), "t8");
                         t1.start();
                         t2.start();
                         t3.start();
@@ -302,7 +303,7 @@ public class MainActivity extends AppCompatActivity {
                             radius3 = 12; // radius3 is the radius of the matrix for the Gaussian blur for the maximum scale
                             sigma4 = 5.656854;
                             radius4 = 17; // radius4 is the radius of the matrix for the Gaussian blur for the current scale
-                            MainMethodSift(); //trying to find object with different sigma val
+                            MainMethodSIFT(); //trying to find object with different sigma val
                             k0 = 0; // No objects found
                             for (i3 = 0; i3 < nObj; i3++) {
                                 if (octave1000First[0][i3] == 1) {
@@ -383,7 +384,7 @@ public class MainActivity extends AppCompatActivity {
         float cY = h * 0.5f;
 
         int rotationDgr;
-        int rotation = (int) textureView.getRotation();
+        int rotation = (int)textureView.getRotation();
 
         switch (rotation) {
             case Surface.ROTATION_0:
@@ -406,7 +407,8 @@ public class MainActivity extends AppCompatActivity {
         textureView.setTransform(mx);
     }
 
-    public void onRequestPermissionResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
                 startCamera();
@@ -467,7 +469,7 @@ public class MainActivity extends AppCompatActivity {
                     octave1000First[i][j] = 0;
                     for (x = -radius0; x <= radius0; x++)
                         for (y = -radius0; y <= radius0; y++)
-                            octave1000Fifth[i][j] = octave1000First[i][j] + maskS0[x + radius0][y + radius0] * greyCdown1[i + x][j + y];
+                            octave1000First[i][j] = octave1000First[i][j] + maskS0[x + radius0][y + radius0] * greyCdown1[i + x][j + y];
                 }
         }
     }
@@ -482,7 +484,7 @@ public class MainActivity extends AppCompatActivity {
                     for (x = -radius1; x <= radius1; x++)
                         for (y = -radius1; y <= radius1; y++)
                             octave1000Second[i][j] = octave1000Second[i][j] + maskS1[x + radius1][y + radius1] * greyCdown1[i + x][j + y];
-                }
+                    }
         }
     }
 
@@ -495,7 +497,7 @@ public class MainActivity extends AppCompatActivity {
                     octave1000Third[i][j] = 0;
                     for (x = -radius2; x <= radius2; x++)
                         for (y = -radius2; y <= radius2; y++)
-                            octave1000Third[i][j] = octave1000Third[i][j] + maskS1[x + radius2][y + radius2] * greyCdown1[i + x][j + y];
+                            octave1000Third[i][j] = octave1000Third[i][j] + maskS2[x + radius2][y + radius2] * greyCdown1[i + x][j + y];
                 }
         }
     }
@@ -1131,7 +1133,7 @@ public class MainActivity extends AppCompatActivity {
         yk[290] = yk[82] + (yk[24] - yk[82]) * 0.5;
     }
 
-    void SiftKeypoint1() {
+    void SIFTKeypoint1() {
         //this is for the second DoG
         if (Math.abs(DoG1000Second[i][j]) >= threshold) { //excluding extrema of low contrast: |D(X)| must be gt 0.03, here pixels are between 0 and 1
             //checking for minimum
@@ -1288,6 +1290,459 @@ public class MainActivity extends AppCompatActivity {
 
                 }
             }
+        }
+    }
+
+    void MainMethodSIFT(){
+        try{
+            trace = 0.0;
+            for (x=-radius0;x<=radius0;x++)
+                for(y = -radius0; y <= radius0; y++){
+                    maskS0[x + radius0][y + radius0] = Math.exp(-(x * x + y * y) / (2.0 * sigma0 * sigma0)) / (2.0 * Math.PI * sigma0 * sigma0);
+                    trace=trace+maskS0[x + radius0][y + radius0];
+                }
+            Log.i(TAG, "1st octave sum = " + trace);
+                trace =0.0;
+            for (x=-radius1;x<=radius1;x++)
+                for (y=-radius1;y<=radius1;y++){maskS1[x + radius1][y + radius1] = Math.exp(-(x * x + y * y) / (2.0 * sigma1 * sigma1)) / (2.0 * Math.PI * sigma1 * sigma1);
+                    trace=trace+maskS1[x + radius1][y + radius1];
+                }
+            Log.i(TAG, "2nd octave sum = " + trace);
+                trace = 0.0;
+            for (x=-radius2;x<=radius2;x++)
+                for (y=-radius2;y<=radius2;y++) {
+                    maskS2[x + radius2][y + radius2] = Math.exp(-(x * x + y * y) / (2.0 * sigma2 * sigma2)) / (2.0 * Math.PI * sigma2 * sigma2);
+                    trace = trace + maskS2[x + radius2][y + radius2];
+                }
+            Log.i(TAG, "3rd octave sum = " + trace);
+            trace = 0.0;
+            for (x=-radius3;x<=radius3;x++)
+                for (y=-radius3;y<=radius3;y++) {
+                    maskS3[x + radius3][y + radius3] = Math.exp(-(x * x + y * y) / (2.0 * sigma3 * sigma3)) / (2.0 * Math.PI * sigma3 * sigma3);
+                    trace=trace+maskS3[x + radius3][y + radius3];
+                }
+            Log.i(TAG, "4th octave sum = " + trace);
+            trace = 0.0;
+            for (x=-radius4;x<=radius4;x++)
+                for (y=-radius4;y<=radius4;y++) {
+                    maskS4[x + radius4][y + radius4] = Math.exp(-(x * x + y * y) / (2.0 * sigma4 * sigma4)) / (2.0 * Math.PI * sigma4 * sigma4);
+                    trace=trace+maskS4[x + radius4][y + radius4];
+                }
+            Log.i(TAG, "5th octave sum = " + trace);
+            ThreadOctave0 t0Octave = new ThreadOctave0();
+            ThreadOctave1 t1Octave = new ThreadOctave1();
+            ThreadOctave2 t2Octave = new ThreadOctave2();
+            ThreadOctave3 t3Octave = new ThreadOctave3();
+            t0Octave.start(); t1Octave.start(); t2Octave.start(); t3Octave.start();
+
+            //use radius4 to boost the performance
+            for (i=radius4;i<width-radius4;i++)
+                for (j = radius4; j < height - radius4; j++){
+                    octave1000Fifth[i][j] = 0;
+                    for (x = -radius4; x <= radius4; x++)
+                        for (y = -radius4; y <= radius4; y++)
+                            octave1000Fifth[i][j] = octave1000Fifth[i][j] + maskS4[x + radius4][y + radius4] * greyCdown1[i + x][j + y];
+                }
+            t0Octave.join(); t1Octave.join(); t2Octave.join(); t3Octave.join();
+            Log.i(TAG, "We finished calculation of octaves");
+
+            //starting the calculation of DoG
+            MatrixBorder=radius4; // The maximum border equals maximum radius
+            if(MatrixBorder < 50) MatrixBorder = 50; //we consider the descriptor - the border can't be less than 20 pixels to top, bottom, left, right
+            // minFirst=1000; maxFirst=-1000; minSecond=1000; maxSecond=-1000; minThird=1000; maxThird=-1000; minFourth=1000; maxFourth=-1000;
+
+            DoGFirst t5DoG = new DoGFirst();
+            DoGSecond t6DoG = new DoGSecond();
+            DoGThird t7DoG = new DoGThird();
+            t5DoG.start(); t6DoG.start(); t7DoG.start();
+            for (i=MatrixBorder;i<width-MatrixBorder;i++)
+                for (j=MatrixBorder;j<height-MatrixBorder;j++){
+                    DoG1000Fourth[i][j]= octave1000Fourth[i][j] - octave1000Fifth[i][j];
+                }
+            t5DoG.join(); t6DoG.join(); t7DoG.join();
+            Log.i(TAG, "We finished calculation of DoGs");
+
+            //looking for keypoints
+            nk = 0; // initially number of keypoints is 0
+            k0 = width/2; //x coordinate center
+            k1 = height/2; //y coordinate center
+            k2 = 1; //number of points in a sequence
+            for (; k0>MatrixBorder && k1>MatrixBorder; k0--, k1--){
+                for (k3=0; k3<k2; k3++){
+                    i=k0+k3; j=k1; SIFTKeypoint1(); SIFTKeypoint2();
+                    i=k0+k2; j=k1+k3; SIFTKeypoint1(); SIFTKeypoint2();
+                    i=k0+k2-k3; j=k1+k2; SIFTKeypoint1(); SIFTKeypoint2();
+                    i=k0; j=k1+k2-k3; SIFTKeypoint1(); SIFTKeypoint2();
+                    if (nk>=maxNoKeyPoints) break; //break if there are enough keypoints
+                }
+                if (nk>=maxNoKeyPoints) break; //break if there are enough keypoints
+                k2 =k2 + 2; // 1 3 5 7...
+            }
+
+            Log.i(TAG, "1st thread is done");
+
+            file = new File(getApplicationContext().getExternalFilesDir(null).getAbsolutePath()+fileSeparator+"Temp"+fileSeparator+"KeyPoints"+ maxRes + "_" + Calendar.getInstance().getTime() + ".jpg");
+            out = new FileOutputStream(file);
+            bmOut.compress(Bitmap.CompressFormat.JPEG, 100, out);
+            out.flush(); out.close();
+
+            Log.i(TAG, "Number of keypoint before optimizing: " + nk);
+
+            if (nk>maxNoKeyPoints) nk=maxNoKeyPoints;
+            for (i1=0;i1<nObj;i1++) octave1000First[0][i1]=0;
+            kBest = -1;
+            for (i1=0; i1<nk; i1++){
+                for (i2=0; i2<nk; i2++){
+                    det = keypoints1000[i1][0] - keypoints1000[i2][0];
+                    trace = keypoints1000[i1][1] - keypoints1000[i2][1];
+                    if ((Math.sqrt(det * det + trace * trace) > 30)){ //using distance of 30 pixels to have some pixels for intermediate points
+                        xk[7] = keypoints1000[i1][0];
+                        yk[7] = keypoints1000[i1][1];
+                        xk[10] = keypoints1000[i2][0];
+                        yk[10] = keypoints1000[i2][1];
+                        sigma0 = (xk[7] - xk[10]) * 0.333333333333333333333;
+                        sigma1 = (yk[7] - yk[10]) * 0.333333333333333333333;
+                        xk[6] = xk[7] + sigma0;
+                        yk[6] = yk[7] + sigma1;
+                        xk[0] = xk[6] - sigma1;
+                        yk[0] = yk[6] + sigma0;
+
+                        //checking borders that must be positive and less than width and height
+                        //top left corner
+                        xk[25] = xk[0] - sigma1 + sigma0;
+                        yk[25] = yk[0] + sigma0 + sigma1;
+                        if (xk[25] > 0 && yk[25] > 0 && xk[25] <= width && yk[25] <= height){
+                            xk[11] = xk[10] - sigma0;
+                            yk[11] = yk[10] - sigma1;
+                            xk[5] = xk[11] - sigma1;
+                            yk[5] = yk[11] + sigma0;
+                            //top tight corner
+                            xk[26] = xk[5] - sigma1 - sigma0;
+                            yk[26] = yk[5] + sigma0 - sigma1;
+                            if (xk[26] > 0 && yk[26] > 0 && xk[26] <= width && yk[26] <= height){
+                                //bottom left corner
+                                xk[27] = xk[6] + 5.0 * sigma1 + sigma0;
+                                yk[27] = yk[6] - 5.0 * sigma0 + sigma1;
+                                if (xk[27] > 0 && yk[27] > 0 && xk[27] <= width && yk[27] <= height){
+                                    //bottom right corner
+                                    xk[28] = xk[11] + 5.0 * sigma1 - sigma0;
+                                    yk[28] = yk[11] - 5.0 * sigma0 - sigma1;
+                                    if (xk[28] > 0 && yk[28] > 0 && xk[28] <= width && yk[28] <= height){
+                                        XkYk1st();
+                                        for (pixel = 0; pixel < 18; pixel++){ //calculating average intensities and drawing circles
+                                            radius0 = (int) Math.round(xk[pixel] - sigma4); // The top coordinate X within the circle, 0 keypoint
+                                            if (radius0 < Math.round(xk[pixel] - sigma4))
+                                                radius0++; //adjusting the coordinate x to be inside the circle
+                                            radius1 = (int) Math.round(yk[pixel] - sigma4); // The most left coordinate Y within the circle, 0 keypoint
+                                            if (radius1 < Math.round(yk[pixel] - sigma4))
+                                                radius1++; //adjusting the coordinate y to be inside the circle
+                                            radius2 = (int) Math.round(xk[pixel] + sigma4); // The bottom coordinate X within the circle, 0 keypoint
+                                            if (radius2 < Math.round(xk[pixel] + sigma4))
+                                                radius2++; //adjusting the coordinate x to be outside the circle - nearest largest integer: to speed the following loop
+                                            radius3 = (int) Math.round(yk[pixel] + sigma4); // The most right Y coordinate within the circle, 0 keypoint
+                                            if (radius3 < Math.round(yk[pixel] + sigma4))
+                                                radius3++; //adjusting the coordinate y to be outside the circle - nearest largest integer: to speed the following loop
+                                            IC[pixel] = 0; //average intensity of the circle around keypoint 0
+                                            k = 0; //number of pixels inside the circle around keypoint
+                                            for (i = radius0; i < radius2; i++)
+                                                for (j = radius1; j < radius3; j++){
+                                                    det = i - xk[pixel];
+                                                    trace = j - yk[pixel];
+                                                    if (Math.sqrt(det * det + trace * trace) <= sigma4){
+                                                        k++;
+                                                        IC[pixel] = IC[pixel] + greyCdown1[i][j];
+                                                    }
+                                                }
+                                            IC[pixel] = IC[pixel] / k;
+                                        }
+                                        sigma4 = sigma4 * 1.5; // radius of the circle around the point, 1st and 2nd levels
+                                        for (pixel = 18; pixel < 22; pixel++){ //calculating average intensities and drawing circles
+                                            radius0 = (int) Math.round(xk[pixel] - sigma4); // The top coordinate X within the circle, 0 keypoint
+                                            if (radius0 < Math.round(xk[pixel] - sigma4))
+                                                radius0++; //adjusting the coordinate x to be inside the circle
+                                            radius1 = (int) Math.round(yk[pixel] - sigma4); // The most left coordinate Y within the circle, 0 keypoint
+                                            if (radius1 < Math.round(yk[pixel] - sigma4))
+                                                radius1++; //adjusting the coordinate y to be inside the circle
+                                            radius2 = (int) Math.round(xk[pixel] + sigma4); // The bottom coordinate X within the circle, 0 keypoint
+                                            if (radius2 < Math.round(xk[pixel] + sigma4))
+                                                radius2++; //adjusting the coordinate x to be outside the circle - nearest largest integer: to speed the following loop
+                                            radius3 = (int) Math.round(yk[pixel] + sigma4); // The most right Y coordinate within the circle, 0 keypoint
+                                            if (radius3 < Math.round(yk[pixel] + sigma4))
+                                                radius3++; //adjusting the coordinate y to be outside the circle - nearest largest integer: to speed the following loop
+                                            IC[pixel] =0; //average intensity of the circle around keypoint 0
+                                            k = 0; //number of pixels inside the circle around keypoint
+                                            for (i = radius0; i < radius2; i++)
+                                                for (j = radius1; j < radius3; j++){
+                                                    det = i - xk[pixel];
+                                                    trace = j - yk[pixel];
+                                                    if (Math.sqrt(det * det + trace * trace) <= sigma4){
+                                                        k++;
+                                                        IC[pixel] = IC[pixel] + greyCdown1[i][j];
+                                                    }
+                                                }
+                                            IC[pixel] = IC[pixel] / k;
+                                        }
+                                        sigma4 = sigma4 * 1.33333333333333333333; // radius of the circle around the point, 1st and 2nd levels
+                                        for (pixel = 22; pixel < 25; pixel++){ //calculating average intensities and drawing circles
+                                            radius0 = (int) Math.round(xk[pixel] - sigma4); // The top coordinate X within the circle, 0 keypoint
+                                            if (radius0 < Math.round(xk[pixel] - sigma4))
+                                                radius0++; //adjusting the coordinate x to be inside the circle
+                                            radius1 = (int) Math.round(yk[pixel] - sigma4); // The most left coordinate Y within the circle, 0 keypoint
+                                            if (radius1 < Math.round(yk[pixel] - sigma4))
+                                                radius1++; //adjusting the coordinate y to be inside the circle
+                                            radius2 = (int) Math.round(xk[pixel] + sigma4); // The bottom coordinate X within the circle, 0 keypoint
+                                            if (radius2 < Math.round(xk[pixel] + sigma4))
+                                                radius2++; //adjusting the coordinate x to be outside the circle - nearest largest integer: to speed the following loop
+                                            radius3 = (int) Math.round(yk[pixel] + sigma4); // The most right Y coordinate within the circle, 0 keypoint
+                                            if (radius3 < Math.round(yk[pixel] + sigma4))
+                                                radius3++; //adjusting the coordinate y to be outside the circle - nearest largest integer: to speed the following loop
+                                            IC[pixel] =0; //average intensity of the circle around keypoint 0
+                                            k = 0; //number of pixels inside the circle around keypoint
+                                            for (i = radius0; i < radius2; i++)
+                                                for (j = radius1; j < radius3; j++){
+                                                    det = i - xk[pixel];
+                                                    trace = j - yk[pixel];
+                                                    if (Math.sqrt(det * det + trace * trace) <= sigma4){
+                                                        k++;
+                                                        IC[pixel] = IC[pixel] + greyCdown1[i][j];
+                                                    }
+                                                }
+                                            IC[pixel] = IC[pixel] / k;
+                                        }
+                                        flagMin = 0;
+                                        MatrixBorder = 0;
+                                        for (i3 = 0; i3 < nObj; i3++) if (octave1000First[0][i3]==0){ //checking if object was not found
+                                            k0 = 0;
+                                            for (i = 7; i < 11; i=i+3) //calculating coincidence between template image and current image here, 1st level
+                                                for (j = 0; j < 12; j++){ //starting from the 3rd maximum diff as 1 and 2 were discussed before
+                                                    //analyze first 20 differences
+                                                    trace = IC[i] - IC[ICdifObj[i3][i][j]];
+                                                    if ((trace > 0 && ICdifDoubleObj[i3][i][j] > 0) || (trace < 0 && ICdifDoubleObj[i3][i][j] < 0)) k0++;
+                                                }
+                                            if (k0 > 20){ // In this version, we apply 100% for 7th and 10th points - points of interest
+                                                // 50% - 12; 55% - 13; 60% - 15; 65% - 16; 70% - 17; 75% - 18; 80% - 20; 85% - 21; 90% - 22
+                                                // 24 is a maximum correct comparisions: 24*0.4=9.6 ; 0.4 - accuracy1; accuracy - % of correct comparisons
+                                                // 24 is a maximum correct comparisions: 24*0.35=8.4 ; 0.35 - accuracy1; accuracy - % of correct comparisons
+                                                // 24 is a maximum correct comparisions: 24*0.9=21.6 ; 0.9 - accuracy1; accuracy - % of correct comparisons
+                                                // 24 is a maximum correct comparisions: 24*0.8=19.2 ; 0.8 - accuracy1; accuracy - % of correct comparisons
+                                                // 24 is a maximum correct comparisions: 24*0.6=14.4 ; 0.6 - accuracy1; accuracy - % of correct comparisons
+                                                // 24 is a maximum correct comparisions: 24*0.65=15.6 ; 0.65 - accuracy1; accuracy - % of correct comparisons
+                                                // 24 is a maximum correct comparisions: 24*0.7=16.8 ; 0.7 - accuracy1; accuracy - % of correct comparisons
+                                                // 24 is a maximum correct comparisions: 24*0.75=18 ; 0.75 - accuracy1; accuracy - % of correct comparisons
+                                                // 24 is a maximum correct comparisions: 24*0.5=12 ; 0.5 - accuracy1; accuracy - % of correct comparisons
+                                                k1 = 0; // number of correct comparisons
+                                                for (i = 0; i < 25; i++) //calculating the coincidence between template and current image
+                                                    for (j = 0; j < 12; j++)
+                                                        if (i!=7 && i!=10){
+                                                            trace = IC[i] - IC[ICdifObj[i3][i][j]];
+                                                            if ((trace > 0 && ICdifDoubleObj[i3][i][j] > 0) || (trace < 0 && ICdifDoubleObj[i3][i][j] < 0)) k1++;
+                                                        }
+                                                if(k1 > 240){
+                                                    //2nd level
+                                                    if (flagMin == 0){
+                                                        XkYk2nd();
+                                                        flagMin = 1;
+                                                    }
+                                                    else sigma4 = sigma4 * 2;
+                                                    for (pixel = 79; pixel < 83; pixel++){
+                                                        radius0 = (int) Math.round(xk[pixel] - sigma4); // The top coordinate X within the circle, 0 keypoint
+                                                        if (radius0 < Math.round(xk[pixel] - sigma4))
+                                                            radius0++; //adjusting the coordinate x to be inside the circle
+                                                        radius1 = (int) Math.round(yk[pixel] - sigma4); // The most left coordinate Y within the circle, 0 keypoint
+                                                        if (radius1 < Math.round(yk[pixel] - sigma4))
+                                                            radius1++; //adjusting the coordinate y to be inside the circle
+                                                        radius2 = (int) Math.round(xk[pixel] + sigma4); // The bottom coordinate X within the circle, 0 keypoint
+                                                        if (radius2 < Math.round(xk[pixel] + sigma4))
+                                                            radius2++; //adjusting the coordinate x to be outside the circle - nearest largest integer: to speed the following loop
+                                                        radius3 = (int) Math.round(yk[pixel] + sigma4); // The most right Y coordinate within the circle, 0 keypoint
+                                                        if (radius3 < Math.round(yk[pixel] + sigma4))
+                                                            radius3++; //adjusting the coordinate y to be outside the circle - nearest largest integer: to speed the following loop
+                                                        IC[pixel] = 0;
+                                                        k2 = 0;
+                                                        for (i = radius0; i < radius2; i++)
+                                                            for (j = radius1; j < radius3; j++){
+                                                                det = i - xk[pixel];
+                                                                trace = j - yk[pixel];
+                                                                if (Math.sqrt(det * det + trace * trace) <= sigma4){
+                                                                    k2 ++;
+                                                                    IC[pixel] = IC[pixel] + greyCdown1[i][j];
+                                                                }
+                                                            }
+                                                        IC[pixel] = IC[pixel] / k2;
+                                                    }
+                                                    sigma4 = sigma4 * 0.75; // radius of the circle around the point, 1st and 2nd levels
+                                                    for (pixel = 62; pixel < 79; pixel++){
+                                                        radius0 = (int) Math.round(xk[pixel] - sigma4); // The top coordinate X within the circle, 0 keypoint
+                                                        if (radius0 < Math.round(xk[pixel] - sigma4))
+                                                            radius0++; //adjusting the coordinate x to be inside the circle
+                                                        radius1 = (int) Math.round(yk[pixel] - sigma4); // The most left coordinate Y within the circle, 0 keypoint
+                                                        if (radius1 < Math.round(yk[pixel] - sigma4))
+                                                            radius1++; //adjusting the coordinate y to be inside the circle
+                                                        radius2 = (int) Math.round(xk[pixel] + sigma4); // The bottom coordinate X within the circle, 0 keypoint
+                                                        if (radius2 < Math.round(xk[pixel] + sigma4))
+                                                            radius2++; //adjusting the coordinate x to be outside the circle - nearest largest integer: to speed the following loop
+                                                        radius3 = (int) Math.round(yk[pixel] + sigma4); // The most right Y coordinate within the circle, 0 keypoint
+                                                        if (radius3 < Math.round(yk[pixel] + sigma4))
+                                                            radius3++; //adjusting the coordinate y to be outside the circle - nearest largest integer: to speed the following loop
+                                                        IC[pixel] = 0;
+                                                        k2 = 0;
+                                                        for (i = radius0; i < radius2; i++)
+                                                            for (j = radius1; j < radius3; j++){
+                                                                det = i - xk[pixel];
+                                                                trace = j - yk[pixel];
+                                                                if (Math.sqrt(det * det + trace * trace) <= sigma4){
+                                                                    k2 ++;
+                                                                    IC[pixel] = IC[pixel] + greyCdown1[i][j];
+                                                                }
+                                                            }
+                                                        IC[pixel] = IC[pixel] / k2;
+                                                    }
+                                                    sigma4 = sigma4 * 0.666666666666666666666;
+                                                    for (pixel = 25; pixel < 62; pixel++){
+                                                        radius0 = (int) Math.round(xk[pixel] - sigma4); // The top coordinate X within the circle, 0 keypoint
+                                                        if (radius0 < Math.round(xk[pixel] - sigma4))
+                                                            radius0++; //adjusting the coordinate x to be inside the circle
+                                                        radius1 = (int) Math.round(yk[pixel] - sigma4); // The most left coordinate Y within the circle, 0 keypoint
+                                                        if (radius1 < Math.round(yk[pixel] - sigma4))
+                                                            radius1++; //adjusting the coordinate y to be inside the circle
+                                                        radius2 = (int) Math.round(xk[pixel] + sigma4); // The bottom coordinate X within the circle, 0 keypoint
+                                                        if (radius2 < Math.round(xk[pixel] + sigma4))
+                                                            radius2++; //adjusting the coordinate x to be outside the circle - nearest largest integer: to speed the following loop
+                                                        radius3 = (int) Math.round(yk[pixel] + sigma4); // The most right Y coordinate within the circle, 0 keypoint
+                                                        if (radius3 < Math.round(yk[pixel] + sigma4))
+                                                            radius3++; //adjusting the coordinate y to be outside the circle - nearest largest integer: to speed the following loop
+                                                        IC[pixel] = 0;
+                                                        k2 = 0;
+                                                        for (i = radius0; i < radius2; i++)
+                                                            for (j = radius1; j < radius3; j++){
+                                                                det = i - xk[pixel];
+                                                                trace = j - yk[pixel];
+                                                                if (Math.sqrt(det * det + trace * trace) <= sigma4){
+                                                                    k2 ++;
+                                                                    IC[pixel] = IC[pixel] + greyCdown1[i][j];
+                                                                }
+                                                            }
+                                                        IC[pixel] = IC[pixel] / k2;
+                                                    }
+                                                    k2 = 0; //number of correct comparisons
+                                                    for (i = 25; i < 83; i++){ //calculating coincidence between template image and current image
+                                                        // We consider only 1st and 2nd maximum differences, i.e. 5% of all comparisions
+                                                        trace = IC[i] - IC[ICdifObj[i3][i][25]];
+                                                        if ((trace > 0 && ICdifDoubleObj[i3][i][25] > 0) || (trace < 0 && ICdifDoubleObj[i3][i][25] < 0))
+                                                            k2++;
+                                                        trace = IC[i] - IC[ICdifObj[i3][i][26]];
+                                                        if ((trace > 0 && ICdifDoubleObj[i3][i][26] > 0) || (trace < 0 && ICdifDoubleObj[i3][i][26] < 0))
+                                                            k2++;
+                                                    }
+                                                    if(k2 > 93){
+                                                        for (i = 25; i < 83; i++) //calculating coincidence between template image and current image
+                                                            for (j = 27; j < 57; j++){
+                                                                trace = IC[i] - IC[ICdifObj[i3][i][j]];
+                                                                if ((trace > 0 && ICdifDoubleObj[i3][i][j] > 0) || (trace < 0 && ICdifDoubleObj[i3][i][j] < 0))
+                                                                    k2++;
+                                                            }
+                                                        if (k2 > 1485){
+                                                            if ( MatrixBorder == 0){
+                                                                XkYk3rd();
+                                                                MatrixBorder = 1;
+                                                            }
+                                                            for (pixel = 83; pixel < 291; pixel++){
+                                                                radius0 = (int) Math.round(xk[pixel] - sigma4); // The top coordinate X within the circle, 0 keypoint
+                                                                if (radius0 < Math.round(xk[pixel] - sigma4))
+                                                                    radius0++; //adjusting the coordinate x to be inside the circle
+                                                                radius1 = (int) Math.round(yk[pixel] - sigma4); // The most left coordinate Y within the circle, 0 keypoint
+                                                                if (radius1 < Math.round(yk[pixel] - sigma4))
+                                                                    radius1++; //adjusting the coordinate y to be inside the circle
+                                                                radius2 = (int) Math.round(xk[pixel] + sigma4); // The bottom coordinate X within the circle, 0 keypoint
+                                                                if (radius2 < Math.round(xk[pixel] + sigma4))
+                                                                    radius2++; //adjusting the coordinate x to be outside the circle - nearest largest integer: to speed the following loop
+                                                                radius3 = (int) Math.round(yk[pixel] + sigma4); // The most right Y coordinate within the circle, 0 keypoint
+                                                                if (radius3 < Math.round(yk[pixel] + sigma4))
+                                                                    radius3++; //adjusting the coordinate y to be outside the circle - nearest largest integer: to speed the following loop
+                                                                IC[pixel] = 0;
+                                                                k2 = 0;
+                                                                for (i = radius0; i < radius2; i++)
+                                                                    for (j = radius1; j < radius3; j++){
+                                                                        det = i - xk[pixel];
+                                                                        trace = j - yk[pixel];
+                                                                        if (Math.sqrt(det * det + trace * trace) <= sigma4){
+                                                                            k2 ++;
+                                                                            IC[pixel] = IC[pixel] + greyCdown1[i][j];
+                                                                        }
+                                                                    }
+                                                                IC[pixel] = IC[pixel] / k2;
+
+                                                            }
+                                                            k3 = 0;
+                                                            for (i = 83; i < 291; i++)
+                                                                for (j = 83; j < 183; j++){
+                                                                    trace = IC[i] - IC[ICdifObj[i3][i][j]];
+                                                                    if ((trace > 0 && ICdifDoubleObj[i3][i][j] > 0) || (trace < 0 && ICdifDoubleObj[i3][i][j] < 0))
+                                                                        k3++;
+                                                                }
+                                                            Log.i(TAG, "3rd stage. Object number " + i3 +" is analyzed. k3 = " + k3);
+                                                            if(k3 > 16720) {
+                                                                if (kBest < (k0 + k1 + k2 + k3)){
+                                                                    kBest = k0 + k1 + k2 + k3;
+                                                                    nObjBest = i3;
+                                                                    if (kBest>kBestThreshold){
+                                                                        Log.i(TAG, "kBest = " + kBest + "  ; k0 = " + k0 + "  ; k1 = " + k1 + "  ; k2 = " + k2 + "  ; k3 = " + k3);
+                                                                        Log.i(TAG, "We've found the object " + i3 + ", and we continue the loop");
+                                                                        octave1000First[0][i3]=1; //marking that the object i3 is found and we will not look for it again
+                                                                        if (i3>-1 && i3<6) for (i=0;i<6;i++) octave1000First[0][i]=1; //marking all objects of type 1
+                                                                        else if (i3>9 && i3<27 || i3==32){
+                                                                            for (i=10;i<27;i++) octave1000First[0][i]=1;
+                                                                            octave1000First[0][32]=1;
+                                                                        }
+                                                                        else if(i3>32 && i3<39 || i3==7){
+                                                                            for (i=33;i<39;i++) octave1000First[0][i]=1;
+                                                                            octave1000First[0][7]=1;
+                                                                        }
+                                                                        else if (i3>38 && i3<50 || i3==8){
+                                                                            for (i=39;i<50;i++) octave1000First[0][i]=1;
+                                                                            octave1000First[0][8]=1;
+                                                                        }
+                                                                        else if (i3>55 && i3<63 || i3==28){
+                                                                            for (i=56;i<63;i++) octave1000First[0][i]=1;
+                                                                            octave1000First[0][28]=1;
+                                                                        }
+                                                                        else if (i3>62 && i3<73 || i3==29){
+                                                                            for (i=63;i<73;i++) octave1000First[0][i]=1;
+                                                                            octave1000First[0][29]=1;
+                                                                        }
+                                                                        else if (i3>72 && i3<82 || i3==30){
+                                                                            for (i=73;i<82;i++) octave1000First[0][i]=1;
+                                                                            octave1000First[0][30]=1;
+                                                                        }
+                                                                        else if (i3>81 && i3<86 || i3==31){
+                                                                            for (i=82;i<86;i++) octave1000First[0][i]=1;
+                                                                            octave1000First[0][31]=1;
+                                                                        }
+                                                                        if (i3>62 && i3<73 || i3==29){
+                                                                        } else{
+                                                                            mp.reset();
+                                                                            mp.setDataSource(getApplicationContext().getExternalFilesDir(null).getAbsolutePath() + fileSeparator + "KnowledgeBase" + fileSeparator + "Name" + nObjBest + ".mp3");
+                                                                            mp.prepare();
+                                                                            mp.start();
+                                                                            Thread.sleep(1500);
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.i(TAG, "Exception " + e);
         }
     }
 }
